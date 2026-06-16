@@ -1,0 +1,17 @@
+[build]
+command = "cd frontend && npm run build"
+publish = "frontend/build"
+
+[env]
+API_URL = "http://localhost:5000"
+
+[context.production]
+environment = { REACT_APP_API_URL = "https://api.aerospace.example.com" }
+
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
+
+[functions]
+directory = "backend"

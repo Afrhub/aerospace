@@ -1,0 +1,14 @@
+[build]
+command = "cd frontend && npm run build"
+publish = "frontend/.next/out"
+
+[env]
+REACT_APP_API_URL = "http://localhost:5000"
+
+[context.production]
+environment = { NEXT_PUBLIC_API_URL = "https://api.aerospace.example.com" }
+
+[[redirects]]
+from = "/*"
+to = "/.netlify/functions/server"
+status = 200
