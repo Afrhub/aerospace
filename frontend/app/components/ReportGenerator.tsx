@@ -1,206 +1,114 @@
-import React, { useState } from 'react';
-import { Workflow, Report } from '../types';
-import axios from 'axios';
+"use client";
 
-interface ReportGeneratorProps {
-  workflow: Workflow;
-}
+import React, { useState } from "react";
+import { FileText, Download, Check, FileType2 } from "lucide-react";
+import { Workflow } from "../types";
+import { generateReport, api } from "../lib/api";
+import { Button, cx } from "./ui";
 
-export const ReportGenerator: React.FC<ReportGeneratorProps> = ({ workflow }) => {
-  const [format, setFormat] = useState<'pdf' | 'docx'>('pdf');
+const CONTENTS = [
+  "Program & ML system identification",
+  "Complete development workflow record",
+  "ED-324 requirement mapping & coverage",
+  "Identified gaps & declared interpretations",
+  "Certification-readiness assessment",
+];
+
+export function ReportGenerator({ workflow }: { workflow: Workflow }) {
+  const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState("");
+  const [done, setDone] = useState(false);
 
-  const handleGenerateReport = async () => {
-    setError('');
-    setSuccess(false);
-    setLoading(true);
-
+  const generate = async () => {
+    setError(""); setLoading(true); setDone(false);
     try {
-      const response = await axios.post(`/api/workflows/${workflow.id}/report`, {
-        format: format
-      });
-
-      const report: Report = response.data;
-
-      // Trigger download
-      window.location.href = report.download_url;
-
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to generate report');
+      const url = await generateReport(workflow, format);
+      const href = url.startsWith("blob:") || url.startsWith("http") ? url : `${api.defaults.baseURL}${url}`;
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `compliance_report_${workflow.id}.${format}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setDone(true);
+      setTimeout(() => setDone(false), 3500);
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+      setError(msg || "Report generation failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
+  const coverage = workflow.ed324_mapping?.coverage_percent ?? 0;
+  const gapCount = workflow.gaps?.gap_count ?? 0;
+
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Download Compliance Report</h2>
-
-      <div style={styles.info}>
-        <p style={styles.infoText}>
-          Generate a regulatory-ready compliance report documenting your ML workflow
-          and ED-324 requirement mapping. This report can be submitted directly to regulators.
-        </p>
-      </div>
-
-      {error && <div style={styles.error}>{error}</div>}
-      {success && <div style={styles.success}>Report generated successfully! Downloading...</div>}
-
-      <div style={styles.section}>
-        <h3 style={styles.subtitle}>Report Format</h3>
-        <div style={styles.formatOptions}>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              value="pdf"
-              checked={format === 'pdf'}
-              onChange={(e) => setFormat(e.target.value as 'pdf' | 'docx')}
-            />
-            <span>PDF</span>
-            <span style={styles.formatHint}>(Professional, read-only)</span>
-          </label>
-          <label style={styles.radioLabel}>
-            <input
-              type="radio"
-              value="docx"
-              checked={format === 'docx'}
-              onChange={(e) => setFormat(e.target.value as 'pdf' | 'docx')}
-            />
-            <span>Word (DOCX)</span>
-            <span style={styles.formatHint}>(Editable)</span>
-          </label>
+    <div className="grid lg:grid-cols-[1fr_340px] gap-6 items-start">
+      {/* Document preview */}
+      <div className="card p-8 sm:p-10">
+        <div className="mx-auto max-w-md rounded-xl border border-[var(--color-line)] bg-white shadow-[var(--shadow-md)] p-8 aspect-[1/1.18] flex flex-col">
+          <div className="flex items-center gap-2 text-[var(--color-accent)]">
+            <FileText size={18} />
+            <span className="text-[11px] font-bold uppercase tracking-[0.16em]">ED-324 Compliance Report</span>
+          </div>
+          <div className="mt-5 space-y-1">
+            <div className="text-[15px] font-extrabold text-[var(--color-ink)] leading-snug">{workflow.program_name || "Program"}</div>
+            <div className="text-[12px] text-[var(--color-muted)]">{workflow.ml_system || "ML system"}</div>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <div className="rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-line-2)] p-3">
+              <div className="text-[20px] font-extrabold tnum text-[var(--color-ink)]">{coverage}%</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--color-faint)]">Coverage</div>
+            </div>
+            <div className="rounded-lg bg-[var(--color-surface-2)] border border-[var(--color-line-2)] p-3">
+              <div className="text-[20px] font-extrabold tnum text-[var(--color-ink)]">{gapCount}</div>
+              <div className="text-[10.5px] font-semibold uppercase tracking-wide text-[var(--color-faint)]">Gaps</div>
+            </div>
+          </div>
+          <div className="mt-5 space-y-2 flex-1">
+            {[100, 82, 90, 68].map((w, i) => (
+              <div key={i} className="h-2 rounded-full bg-[var(--color-line-2)]" style={{ width: `${w}%` }} />
+            ))}
+          </div>
+          <div className="mt-4 pt-4 border-t border-[var(--color-line-2)] text-[10px] text-[var(--color-faint)] flex justify-between">
+            <span>Verity · Generated</span><span className="mono">ED-324</span>
+          </div>
         </div>
       </div>
 
-      <div style={styles.section}>
-        <h3 style={styles.subtitle}>Report Contents</h3>
-        <ul style={styles.contentsList}>
-          <li style={styles.contentItem}>Program and ML system information</li>
-          <li style={styles.contentItem}>Complete workflow description</li>
-          <li style={styles.contentItem}>ED-324 requirement mapping</li>
-          <li style={styles.contentItem}>Identified gaps and missing requirements</li>
-          <li style={styles.contentItem}>Certification readiness assessment</li>
+      {/* Controls */}
+      <div className="card p-6">
+        <h2 className="text-[15px] font-bold text-[var(--color-ink)]">Export evidence</h2>
+        <p className="text-[13px] text-[var(--color-muted)] mt-1">Regulator-ready — no manual editing required.</p>
+
+        {/* Segmented control */}
+        <div className="mt-5 grid grid-cols-2 gap-1 p-1 rounded-[var(--radius-md)] bg-[var(--color-line-2)]">
+          {(["pdf", "docx"] as const).map((f) => (
+            <button key={f} onClick={() => setFormat(f)}
+              className={cx(
+                "inline-flex items-center justify-center gap-1.5 h-9 rounded-[9px] text-[13px] font-semibold transition-all cursor-pointer",
+                format === f ? "bg-[var(--color-surface)] text-[var(--color-ink)] shadow-[var(--shadow-xs)]" : "text-[var(--color-muted)] hover:text-[var(--color-ink)]"
+              )}>
+              <FileType2 size={14} /> {f.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <ul className="mt-5 grid gap-2">
+          {CONTENTS.map((c) => (
+            <li key={c} className="flex items-start gap-2.5 text-[13px] text-[var(--color-ink-2)]">
+              <Check size={15} className="mt-0.5 shrink-0 text-[var(--color-ok)]" strokeWidth={2.5} /> {c}
+            </li>
+          ))}
         </ul>
+
+        {error && <div role="alert" className="mt-4 rounded-[var(--radius-md)] bg-[var(--color-danger-soft)] border border-[var(--color-danger)]/25 px-3.5 py-2.5 text-[12.5px] text-[var(--color-danger)]">{error}</div>}
+
+        <Button onClick={generate} loading={loading} className="w-full mt-5">
+          {done ? <><Check size={16} /> Downloaded</> : <><Download size={16} /> Download {format.toUpperCase()}</>}
+        </Button>
+        <p className="mt-3 text-[11.5px] text-[var(--color-faint)] leading-relaxed text-center">Handle exported evidence per your program's data-classification policy.</p>
       </div>
-
-      <button
-        onClick={handleGenerateReport}
-        disabled={loading}
-        style={{
-          ...styles.generateBtn,
-          opacity: loading ? 0.6 : 1,
-          cursor: loading ? 'not-allowed' : 'pointer'
-        }}
-      >
-        {loading ? 'Generating...' : `Download as ${format.toUpperCase()}`}
-      </button>
-
-      <p style={styles.note}>
-        💾 <strong>Note:</strong> The generated report is adoption-ready and can be submitted to regulators without further editing.
-      </p>
     </div>
   );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '2rem',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-  title: {
-    fontSize: '1.5rem',
-    marginBottom: '1rem',
-    color: '#1f4788'
-  },
-  info: {
-    padding: '1rem',
-    backgroundColor: '#e3f2fd',
-    border: '1px solid #90caf9',
-    borderRadius: '6px',
-    marginBottom: '1.5rem'
-  },
-  infoText: {
-    margin: 0,
-    color: '#1565c0',
-    fontSize: '0.95rem'
-  },
-  section: {
-    marginBottom: '1.5rem'
-  },
-  subtitle: {
-    fontSize: '1rem',
-    fontWeight: 600,
-    color: '#333',
-    marginBottom: '0.75rem'
-  },
-  formatOptions: {
-    display: 'flex',
-    gap: '2rem'
-  },
-  radioLabel: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.5rem',
-    cursor: 'pointer',
-    fontSize: '0.95rem'
-  },
-  formatHint: {
-    fontSize: '0.85rem',
-    color: '#999',
-    marginLeft: '0.25rem'
-  },
-  contentsList: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0
-  },
-  contentItem: {
-    padding: '0.5rem 0 0.5rem 1.5rem',
-    position: 'relative' as const,
-    fontSize: '0.95rem',
-    color: '#666'
-  },
-  generateBtn: {
-    width: '100%',
-    padding: '1rem',
-    backgroundColor: '#1f4788',
-    color: '#fff',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '1rem',
-    fontWeight: 600,
-    cursor: 'pointer',
-    marginBottom: '1rem',
-    transition: 'background 0.2s'
-  },
-  note: {
-    margin: 0,
-    padding: '0.75rem',
-    backgroundColor: '#f5f5f5',
-    borderLeft: '4px solid #ffc107',
-    fontSize: '0.9rem',
-    color: '#666'
-  },
-  error: {
-    padding: '1rem',
-    backgroundColor: '#ffebee',
-    color: '#c62828',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-    border: '1px solid #ef5350'
-  },
-  success: {
-    padding: '1rem',
-    backgroundColor: '#e8f5e9',
-    color: '#2e7d32',
-    borderRadius: '4px',
-    marginBottom: '1rem',
-    border: '1px solid #4caf50'
-  }
-};
+}

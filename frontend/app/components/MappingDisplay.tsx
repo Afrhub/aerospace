@@ -1,135 +1,91 @@
-import React from 'react';
-import { Workflow } from '../types';
+"use client";
 
-interface MappingDisplayProps {
-  workflow: Workflow;
-}
+import React, { useEffect, useState } from "react";
+import { Check, Minus } from "lucide-react";
+import { Workflow } from "../types";
+import { cx } from "./ui";
 
-export const MappingDisplay: React.FC<MappingDisplayProps> = ({ workflow }) => {
-  if (!workflow.ed324_mapping) return null;
+const REQ_LABEL: Record<string, string> = {
+  data_preparation: "Data preparation",
+  model_training: "Model training",
+  testing_evaluation: "Testing & evaluation",
+  robustness_validation: "Robustness validation",
+  monitoring_deployment: "Deployment monitoring",
+  requirements_traceability: "Traceability",
+  documentation: "Documentation",
+};
 
-  const { mapping, coverage_percent } = workflow.ed324_mapping;
-
+function Gauge({ percent }: { percent: number }) {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    const t = setTimeout(() => setP(percent), 80);
+    return () => clearTimeout(t);
+  }, [percent]);
+  const r = 52, c = 2 * Math.PI * r;
+  const tone = percent >= 80 ? "var(--color-ok)" : percent >= 50 ? "var(--color-accent)" : "var(--color-warn)";
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>ED-324 Requirement Mapping</h2>
-
-      <div style={styles.coverageSection}>
-        <h3 style={styles.subtitle}>Coverage Overview</h3>
-        <div style={styles.coverageBar}>
-          <div
-            style={{
-              ...styles.coverageBarFill,
-              width: `${coverage_percent}%`
-            }}
-          />
-        </div>
-        <p style={styles.coverageText}>
-          <strong>{coverage_percent}%</strong> of ED-324 requirements covered
-        </p>
-      </div>
-
-      <div style={styles.mappingGrid}>
-        <h3 style={styles.subtitle}>Step-by-Step Mapping</h3>
-        {Object.entries(mapping).map(([stepName, requirements]) => (
-          <div key={stepName} style={styles.mappingCard}>
-            <h4 style={styles.stepName}>{stepName}</h4>
-            {requirements.length > 0 ? (
-              <div style={styles.requirementsList}>
-                {requirements.map((req) => (
-                  <span key={req} style={styles.requirementTag}>
-                    ✓ {req}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p style={styles.noMapping}>No ED-324 requirements mapped to this step</p>
-            )}
-          </div>
-        ))}
+    <div className="relative h-[140px] w-[140px] shrink-0">
+      <svg viewBox="0 0 140 140" className="-rotate-90 h-full w-full">
+        <circle cx="70" cy="70" r={r} fill="none" stroke="var(--color-line-2)" strokeWidth="11" />
+        <circle cx="70" cy="70" r={r} fill="none" stroke={tone} strokeWidth="11" strokeLinecap="round"
+          strokeDasharray={c} strokeDashoffset={c - (c * p) / 100}
+          style={{ transition: "stroke-dashoffset 1s cubic-bezier(0.16,1,0.3,1)" }} />
+      </svg>
+      <div className="absolute inset-0 grid place-content-center text-center">
+        <span className="text-[30px] font-extrabold tracking-tight tnum text-[var(--color-ink)] leading-none">{Math.round(p)}<span className="text-[16px] text-[var(--color-faint)]">%</span></span>
+        <span className="text-[10.5px] font-semibold uppercase tracking-wider text-[var(--color-faint)] mt-1">covered</span>
       </div>
     </div>
   );
-};
+}
 
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '2rem',
-    marginBottom: '2rem',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-  title: {
-    fontSize: '1.5rem',
-    marginBottom: '1.5rem',
-    color: '#1f4788'
-  },
-  subtitle: {
-    fontSize: '1.1rem',
-    marginBottom: '1rem',
-    color: '#333',
-    fontWeight: 600
-  },
-  coverageSection: {
-    marginBottom: '2rem',
-    padding: '1.5rem',
-    backgroundColor: '#f5f5f5',
-    borderRadius: '6px'
-  },
-  coverageBar: {
-    width: '100%',
-    height: '30px',
-    backgroundColor: '#e0e0e0',
-    borderRadius: '4px',
-    overflow: 'hidden',
-    marginBottom: '0.75rem'
-  },
-  coverageBarFill: {
-    height: '100%',
-    backgroundColor: '#4caf50',
-    transition: 'width 0.3s ease'
-  },
-  coverageText: {
-    fontSize: '0.95rem',
-    color: '#666',
-    margin: 0
-  },
-  mappingGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '1rem'
-  },
-  mappingCard: {
-    border: '1px solid #ddd',
-    borderRadius: '6px',
-    padding: '1rem',
-    backgroundColor: '#fafafa'
-  },
-  stepName: {
-    margin: '0 0 0.75rem 0',
-    fontSize: '1rem',
-    color: '#1f4788',
-    fontWeight: 600
-  },
-  requirementsList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '0.5rem'
-  },
-  requirementTag: {
-    display: 'inline-block',
-    padding: '0.5rem 0.75rem',
-    backgroundColor: '#e8f5e9',
-    color: '#2e7d32',
-    borderRadius: '4px',
-    fontSize: '0.9rem',
-    fontWeight: 500
-  },
-  noMapping: {
-    margin: 0,
-    color: '#999',
-    fontStyle: 'italic',
-    fontSize: '0.9rem'
-  }
-};
+export function MappingDisplay({ workflow }: { workflow: Workflow }) {
+  const m = workflow.ed324_mapping;
+  if (!m) return null;
+  const covered = new Set(m.covered_requirements);
+
+  return (
+    <section className="card overflow-hidden">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-6 p-6 border-b border-[var(--color-line-2)] bg-[var(--color-surface-2)]">
+        <Gauge percent={m.coverage_percent} />
+        <div className="flex-1">
+          <h2 className="text-[16px] font-bold text-[var(--color-ink)]">ED-324 requirement coverage</h2>
+          <p className="text-[13px] text-[var(--color-muted)] mt-1 max-w-md">
+            {covered.size} of 7 requirements are evidenced by your workflow. The remainder appear as gaps below.
+          </p>
+          <div className="flex flex-wrap gap-1.5 mt-4">
+            {Object.keys(REQ_LABEL).map((id) => {
+              const ok = covered.has(id);
+              return (
+                <span key={id} className={cx(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11.5px] font-semibold",
+                  ok ? "bg-[var(--color-ok-soft)] text-[var(--color-ok)]" : "bg-[var(--color-line-2)] text-[var(--color-faint)]"
+                )}>
+                  {ok ? <Check size={11} strokeWidth={3} /> : <Minus size={11} strokeWidth={3} />}
+                  {REQ_LABEL[id]}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="divide-y divide-[var(--color-line-2)]">
+        {Object.entries(m.mapping).map(([stepName, reqs]) => (
+          <div key={stepName} className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 py-4">
+            <div className="sm:w-56 shrink-0 font-semibold text-[14px] text-[var(--color-ink)]">{stepName}</div>
+            <div className="flex flex-wrap gap-1.5">
+              {reqs.length > 0 ? reqs.map((r) => (
+                <span key={r} className="mono inline-flex items-center gap-1.5 rounded-md bg-[var(--color-accent-soft)] text-[var(--color-accent-ink)] px-2 py-1 text-[11.5px] font-medium">
+                  <Check size={11} strokeWidth={3} /> {r}
+                </span>
+              )) : (
+                <span className="text-[12.5px] text-[var(--color-faint)] italic">No ED-324 requirement matched</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}

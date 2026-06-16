@@ -1,153 +1,48 @@
-import React from 'react';
-import { Workflow } from '../types';
+"use client";
 
-interface GapDetectionProps {
-  workflow: Workflow;
-}
+import React from "react";
+import { ShieldCheck, AlertTriangle } from "lucide-react";
+import { Workflow } from "../types";
 
-export const GapDetection: React.FC<GapDetectionProps> = ({ workflow }) => {
-  if (!workflow.gaps) return null;
+export function GapDetection({ workflow }: { workflow: Workflow }) {
+  const gaps = workflow.gaps;
+  if (!gaps) return null;
 
-  const { gap_count, gap_details } = workflow.gaps;
-
-  if (gap_count === 0) {
+  if (gaps.gap_count === 0) {
     return (
-      <div style={styles.container}>
-        <div style={styles.successCard}>
-          <h3 style={styles.successTitle}>✓ No Gaps Detected</h3>
-          <p style={styles.successText}>
-            Your workflow covers all identified ED-324 requirements. You're ready to generate a compliance report.
-          </p>
+      <section className="card p-6 flex items-start gap-4">
+        <span className="grid place-items-center h-11 w-11 shrink-0 rounded-[12px] bg-[var(--color-ok-soft)] text-[var(--color-ok)]"><ShieldCheck size={22} /></span>
+        <div>
+          <h2 className="text-[15.5px] font-bold text-[var(--color-ink)]">No gaps detected</h2>
+          <p className="text-[13.5px] text-[var(--color-muted)] mt-1">Every ED-324 requirement is evidenced by your workflow. You're ready to generate the compliance report.</p>
         </div>
-      </div>
+      </section>
     );
   }
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>ED-324 Requirement Gaps</h2>
-
-      <div style={styles.gapSummary}>
-        <p style={styles.summaryText}>
-          <strong>{gap_count}</strong> ED-324 requirement(s) are missing from your workflow documentation.
-          Review the details below and address them before regulatory submission.
-        </p>
+    <section className="card overflow-hidden">
+      <div className="flex items-center gap-3 p-6 border-b border-[var(--color-line-2)]">
+        <span className="grid place-items-center h-11 w-11 shrink-0 rounded-[12px] bg-[var(--color-warn-soft)] text-[var(--color-warn)]"><AlertTriangle size={21} /></span>
+        <div>
+          <h2 className="text-[15.5px] font-bold text-[var(--color-ink)]">
+            <span className="tnum">{gaps.gap_count}</span> requirement{gaps.gap_count !== 1 && "s"} need attention
+          </h2>
+          <p className="text-[13px] text-[var(--color-muted)]">Address these before submitting to regulators, or document the deviation in your evidence trail.</p>
+        </div>
       </div>
 
-      <div style={styles.gapsList}>
-        {gap_details.map((gap, index) => (
-          <div key={index} style={styles.gapCard}>
-            <div style={styles.gapHeader}>
-              <span style={styles.gapNumber}>{index + 1}</span>
-              <h3 style={styles.gapTitle}>{gap.requirement}</h3>
+      <ol className="divide-y divide-[var(--color-line-2)]">
+        {gaps.gap_details.map((gap, i) => (
+          <li key={i} className="flex gap-4 px-6 py-4">
+            <span className="grid place-items-center h-7 w-7 shrink-0 rounded-full bg-[var(--color-warn-soft)] text-[var(--color-warn)] text-[12px] font-bold tnum">{i + 1}</span>
+            <div>
+              <h3 className="text-[14px] font-bold text-[var(--color-ink)]">{gap.requirement}</h3>
+              <p className="text-[13px] text-[var(--color-muted)] mt-0.5 leading-relaxed">{gap.details}</p>
             </div>
-            <p style={styles.gapDetails}>{gap.details}</p>
-            <div style={styles.gapAction}>
-              <span style={styles.actionText}>
-                💡 Document or implement this requirement before certification
-              </span>
-            </div>
-          </div>
+          </li>
         ))}
-      </div>
-    </div>
+      </ol>
+    </section>
   );
-};
-
-const styles: Record<string, React.CSSProperties> = {
-  container: {
-    backgroundColor: '#fff',
-    borderRadius: '8px',
-    padding: '2rem',
-    marginBottom: '2rem',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-  },
-  title: {
-    fontSize: '1.5rem',
-    marginBottom: '1.5rem',
-    color: '#d32f2f'
-  },
-  gapSummary: {
-    padding: '1rem',
-    backgroundColor: '#fff3e0',
-    border: '1px solid #ffb74d',
-    borderRadius: '6px',
-    marginBottom: '1.5rem'
-  },
-  summaryText: {
-    margin: 0,
-    color: '#e65100',
-    fontSize: '0.95rem'
-  },
-  gapsList: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '1rem'
-  },
-  gapCard: {
-    border: '1px solid #ffcdd2',
-    borderRadius: '6px',
-    padding: '1.5rem',
-    backgroundColor: '#fff5f5'
-  },
-  gapHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    marginBottom: '0.75rem',
-    gap: '1rem'
-  },
-  gapNumber: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '32px',
-    height: '32px',
-    backgroundColor: '#d32f2f',
-    color: '#fff',
-    borderRadius: '50%',
-    fontWeight: 700,
-    fontSize: '0.9rem',
-    flexShrink: 0
-  },
-  gapTitle: {
-    margin: 0,
-    fontSize: '1.1rem',
-    color: '#d32f2f',
-    fontWeight: 600
-  },
-  gapDetails: {
-    margin: '0.75rem 0 0 0',
-    color: '#666',
-    fontSize: '0.95rem',
-    lineHeight: 1.5
-  },
-  gapAction: {
-    marginTop: '1rem',
-    padding: '0.75rem',
-    backgroundColor: '#f3e5f5',
-    borderRadius: '4px'
-  },
-  actionText: {
-    color: '#7b1fa2',
-    fontSize: '0.9rem',
-    fontWeight: 500
-  },
-  successCard: {
-    padding: '2rem',
-    backgroundColor: '#e8f5e9',
-    border: '2px solid #4caf50',
-    borderRadius: '6px',
-    textAlign: 'center' as const
-  },
-  successTitle: {
-    margin: '0 0 0.5rem 0',
-    fontSize: '1.3rem',
-    color: '#2e7d32',
-    fontWeight: 600
-  },
-  successText: {
-    margin: 0,
-    color: '#558b2f',
-    fontSize: '0.95rem'
-  }
-};
+}
